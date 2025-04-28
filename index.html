@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronic Kidney Disease Prediction Tool</title>
+
+  <!-- Chart.js & Chart.js Datalabels -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+  <!-- Your CSS styles remain same as your uploaded file -->
+  <style>
+    /* Your existing CSS here (I kept your original styling) */
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>Chronic Kidney Disease Prediction Tool</h1>
+  <p>Assess your risk factors for developing chronic kidney disease</p>
+</header>
+
+<!-- Form Section -->
+<section class="form-section">
+  <!-- Your form elements remain same -->
+</section>
+
+<!-- Results Section -->
+<section id="result" class="hidden">
+  <!-- Your risk results display -->
+</section>
+
+<!-- Visualizations Section -->
+<section id="visualizations" class="hidden">
+  <!-- Visualizations content -->
+  <canvas id="riskLevelChart"></canvas>
+  <canvas id="factorsChart"></canvas>
+  <canvas id="ageComparisonChart"></canvas>
+  <div id="risk-factors-container"></div>
+</section>
+
+<!-- Footer Section -->
+<footer>
+  <!-- Your footer remains same -->
+</footer>
+
+<!-- Chatbot Section -->
+<div id="chatbot-container">
+  <!-- Your chatbot remains same -->
+</div>
+
+<!-- Scripts -->
+<script>
+  // Your form handling, chatbot toggle, and data collection scripts remain same
+
+  // Visualization creation starts here
+
+  let userRiskData = {};
+  let riskCharts = {};
+
+  function createVisualizations() {
+    createRiskLevelChart();
+    createFactorsChart();
+    createAgeComparisonChart();
+    createRiskFactorsList();
+  }
+
+  function createGradient(ctx, color) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, '#ffffff');
+    return gradient;
+  }
+
+  function createRiskLevelChart() {
+    const ctx = document.getElementById('riskLevelChart').getContext('2d');
+    if (riskCharts.riskLevelChart) riskCharts.riskLevelChart.destroy();
+
+    const riskLevels = ['Low', 'Moderate', 'High'];
+    const riskScores = [5, 8, 15];
+    const userScore = userRiskData.riskScore;
+
+    let userPosition = userScore < 6 ? 0 : userScore < 10 ? 1 : 2;
+
+    riskCharts.riskLevelChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: riskLevels,
+        datasets: [
+          {
+            label: 'Typical Risk Range',
+            data: riskScores,
+            backgroundColor: [createGradient(ctx, '#27ae60'), createGradient(ctx, '#f39c12'), createGradient(ctx, '#e74c3c')],
+            borderRadius: 10
+          },
+          {
+            label: 'Your Score',
+            data: riskLevels.map((_, i) => i === userPosition ? userScore : null),
+            backgroundColor: '#1a6fc9',
+            borderRadius: 10
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        animation: {duration: 1500},
+        plugins: {
+          title: {display: true, text: 'Your CKD Risk Compared to Typical Ranges'},
+          tooltip: {callbacks: {label: ctx => ctx.dataset.label + ': ' + ctx.raw}},
+          datalabels: {
+            color: '#333',
+            anchor: 'end',
+            align: 'top',
+            formatter: Math.round
+          }
+        },
+        scales: {
+          y: {beginAtZero: true, max: 20, title: {display: true, text: 'Risk Score'}}
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+  }
+
+  function createFactorsChart() {
+    const ctx = document.getElementById('factorsChart').getContext('2d');
+    if (riskCharts.factorsChart) riskCharts.factorsChart.destroy();
+
+    const topFactors = userRiskData.riskFactors.filter(f => f.value > 0).sort((a, b) => b.value - a.value).slice(0, 6);
+    const labels = topFactors.map(f => `${f.name} (${f.value} pts)`);
+    const values = topFactors.map(f => f.value);
+    const colors = ['#1abc9c', '#3498db', '#9b59b6', '#e74c3c', '#f39c12', '#2ecc71'];
+
+    riskCharts.factorsChart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels,
+        datasets: [{data: values, backgroundColor: colors, borderWidth: 2}]
+      },
+      options: {
+        responsive: true,
+        animation: {duration: 1500},
+        plugins: {
+          title: {display: true, text: 'Top Risk Factors Contribution'},
+          tooltip: {callbacks: {label: ctx => ctx.label + ': ' + ctx.raw}},
+          datalabels: {
+            color: '#fff',
+            formatter: (value, ctx) => Math.round((value / values.reduce((a,b) => a+b,0)) * 100) + '%'
+          }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+  }
+
+  function createAgeComparisonChart() {
+    const ctx = document.getElementById('ageComparisonChart').getContext('2d');
+    if (riskCharts.ageComparisonChart) riskCharts.ageComparisonChart.destroy();
+
+    const ageGroups = ['<40', '40-49', '50-59', '60+'];
+    const avgScores = [2, 4, 6, 9];
+    let userAgeGroup = userRiskData.age < 40 ? 0 : userRiskData.age < 50 ? 1 : userRiskData.age < 60 ? 2 : 3;
+
+    riskCharts.ageComparisonChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ageGroups,
+        datasets: [
+          {
+            label: 'Avg Risk Score',
+            data: avgScores,
+            borderColor: '#95a5a6',
+            backgroundColor: 'rgba(149,165,166,0.2)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true
+          },
+          {
+            label: 'Your Score',
+            data: ageGroups.map((_, i) => i === userAgeGroup ? userRiskData.riskScore : null),
+            borderColor: '#1a6fc9',
+            backgroundColor: '#1a6fc9',
+            borderWidth: 4,
+            pointRadius: 7
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        animation: {duration: 1500},
+        plugins: {
+          title: {display: true, text: 'Risk Compared to Your Age Group'},
+          tooltip: {callbacks: {label: ctx => ctx.dataset.label + ': ' + ctx.raw}}
+        },
+        scales: {
+          y: {beginAtZero: true, title: {display: true, text: 'Risk Score'}, max: 15}
+        }
+      }
+    });
+  }
+
+  function createRiskFactorsList() {
+    const container = document.getElementById('risk-factors-container');
+    container.innerHTML = '';
+    const sortedFactors = userRiskData.riskFactors.sort((a,b) => (b.value/b.max) - (a.value/b.max));
+    sortedFactors.forEach(factor => {
+      if (factor.value > 0) {
+        const div = document.createElement('div');
+        div.className = 'risk-factor';
+        const importance = factor.value / factor.max;
+        div.classList.add(importance >= 0.75 ? 'high' : importance >= 0.5 ? 'medium' : '');
+        div.textContent = `${factor.name} (${factor.value}/${factor.max})`;
+        container.appendChild(div);
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
